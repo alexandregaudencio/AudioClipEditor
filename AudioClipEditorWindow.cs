@@ -7,7 +7,6 @@ namespace AudioClipEditor
     {
         private AudioClip targetClip;
         private float trimStart = 0.01f;
-        private float trimEnd = 0.01f;
         private bool normalizeVolume = true;
         private AudioClip previewClip;
         private AudioSource previewSource;
@@ -27,7 +26,12 @@ namespace AudioClipEditor
         void OnGUI()
         {
             GUILayout.Space(10);
-            targetClip = (AudioClip)EditorGUILayout.ObjectField("AudioClip", targetClip, typeof(AudioClip), false);
+            var newTargetClip = (AudioClip)EditorGUILayout.ObjectField("AudioClip", targetClip, typeof(AudioClip), false);
+            if (newTargetClip != targetClip)
+            {
+                targetClip = newTargetClip;
+                trimStart = 0;
+            }
             normalizeVolume = EditorGUILayout.Toggle("Normalize", normalizeVolume);
 
             GUILayout.Space(10);
@@ -36,12 +40,6 @@ namespace AudioClipEditor
             trimStart = EditorGUILayout.Slider("start", trimStart, 0f, 0.99f);
             GUILayout.Label("%");
             GUILayout.EndHorizontal();
-
-            GUILayout.BeginHorizontal();
-            trimEnd = EditorGUILayout.Slider("end", trimEnd, 0f, 0.99f);
-            GUILayout.Label("%");
-            GUILayout.EndHorizontal();
-
 
             PreviewClip();
             originalWaveformTex = AudioWaveformGenerator.GenerateWaveform(targetClip, waveformWidth, waveformHeight, Color.green);
@@ -84,7 +82,10 @@ namespace AudioClipEditor
                 GUIStyle boldButton = new GUIStyle(GUI.skin.button);
                 boldButton.fontStyle = FontStyle.Bold;
                 if (GUILayout.Button(" Save Edited clip", boldButton, GUILayout.Height(30)))
-                    SaveProcessedClip();
+                {
+                    SaveProcessedClipOverriding();
+                    trimStart = 0;
+                }
 
                 GUI.backgroundColor = originalColor;
             }
@@ -104,8 +105,9 @@ namespace AudioClipEditor
 
         void PreviewClip()
         {
-            previewClip = AudioClipProcessor.TrimSilence(targetClip, trimStart, trimEnd);
-            if (normalizeVolume && previewClip != null)
+            if (targetClip == null) return;
+            previewClip = AudioClipProcessor.TrimStart(targetClip, trimStart);
+            if (normalizeVolume)
                 previewClip = AudioClipProcessor.Normalize(previewClip);
         }
 
@@ -128,21 +130,30 @@ namespace AudioClipEditor
                 previewSource.Stop();
         }
 
+
+        //Unity does not provide a way to export audioClip as .pm3 or .ogg, just .wav
         void SaveProcessedClip()
         {
-            string path = EditorUtility.SaveFilePanelInProject("Save Processed Clip", targetClip.name + "_processed", "wav", "Save processed clip");
+            string path = EditorUtility.SaveFilePanelInProject("Save Processed Clip", targetClip.name, "wav", "Save processed clip");
             if (string.IsNullOrEmpty(path)) return;
 
-            AudioClip processed = AudioClipProcessor.TrimSilence(targetClip, silenceThreshold);
-            if (normalizeVolume && processed != null)
-                processed = AudioClipProcessor.Normalize(processed);
 
-            if (processed != null)
-            {
-                byte[] wavData = WavUtility.FromAudioClip(processed, out _, false);
-                File.WriteAllBytes(Path.Combine(Application.dataPath, path.Replace("Assets/", "")), wavData);
-                AssetDatabase.Refresh();
-            }
+            byte[] wavData = WavUtility.FromAudioClip(previewClip, out _, false);
+            File.WriteAllBytes(Path.Combine(Application.dataPath, path.Replace("Assets/", "")), wavData);
+            AssetDatabase.Refresh();
+
+        }
+
+        void SaveProcessedClipOverriding()
+        {
+            string assetPath = AssetDatabase.GetAssetPath(targetClip);
+            string fullPath = Path.Combine(Directory.GetCurrentDirectory(), assetPath);
+
+            byte[] wavData = WavUtility.FromAudioClip(previewClip, out _, false);
+            File.WriteAllBytes(fullPath, wavData);
+
+            AssetDatabase.ImportAsset(assetPath, ImportAssetOptions.Default);
+            AssetDatabase.Refresh();
         }
 
     }
