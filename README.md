@@ -11,3 +11,14 @@ Quickly trim, adjust volume, and preview audio clips without leaving the Unity E
 
 Perfect for quick edits in game development.  
 
+# Installation
+1. Open the window: **Window > Package Manager**
+2. In the Package Manager window, click the + button (Add package) in the top left corner.
+3. Select Add package from git URL....
+4. Paste the following URL and click Add:
+```https://github.com/alexandregaudencio/AudioClipEditor.git ```
+
+# Usage
+In the Unity editor, navigate to:
+1. Open the window: **Tools > AudioClip Editor**
+2. This will open a window where you can assign an audioClip to edit it.
