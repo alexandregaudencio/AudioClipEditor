@@ -4,50 +4,26 @@ namespace AudioClipEditor
 
     public static class AudioClipProcessor
     {
-        //public static AudioClip TrimSilence(AudioClip clip, float threshold = 0.01f)
-        //{
-        //    float[] samples = new float[clip.samples * clip.channels];
-        //    clip.GetData(samples, 0);
-
-        //    int start = 0;
-        //    int end = samples.Length - 1;
-
-        //    // Detecta início
-        //    while (start < samples.Length && Mathf.Abs(samples[start]) < threshold) start++;
-        //    // Detecta fim
-        //    while (end > start && Mathf.Abs(samples[end]) < threshold) end--;
-
-        //    int newLength = end - start + 1;
-        //    if (newLength <= 0) return null;
-
-        //    float[] trimmedSamples = new float[newLength];
-        //    System.Array.Copy(samples, start, trimmedSamples, 0, newLength);
-
-        //    AudioClip newClip = AudioClip.Create(clip.name + "_trimmed", newLength / clip.channels, clip.channels, clip.frequency, false);
-        //    newClip.SetData(trimmedSamples, 0);
-        //    return newClip;
-        //}
-        public static AudioClip TrimStart(AudioClip clip, float threshold = 0.01f)
+        public static AudioClip TrimAudioClip(AudioClip clip, float startCut, float endCut)
         {
-            float[] samples = new float[clip.samples * clip.channels];
-            clip.GetData(samples, 0);
+            int channels = clip.channels;
+            int frequency = clip.frequency;
+            int startSample = Mathf.FloorToInt(startCut * frequency);
+            int endSample = Mathf.FloorToInt((clip.length - endCut) * frequency);
+            int samples = endSample - startSample;
 
-            int start = 0;
-            while (start < samples.Length && Mathf.Abs(samples[start]) < threshold) start++;
-
-            int newLength = samples.Length - start;
-            if (newLength <= 0) return null;
-
-            float[] trimmedSamples = new float[newLength];
-            System.Array.Copy(samples, start, trimmedSamples, 0, newLength);
-
-            AudioClip newClip = AudioClip.Create(clip.name + "_trimStart", newLength / clip.channels, clip.channels, clip.frequency, false);
-            newClip.SetData(trimmedSamples, 0);
-            return newClip;
+            if (samples <= 0)
+                return null;
+            float[] data = new float[clip.samples * channels];
+            clip.GetData(data, 0);
+            float[] trimmedData = new float[samples * channels];
+            System.Array.Copy(data, startSample * channels, trimmedData, 0, trimmedData.Length);
+            AudioClip trimmedAudioClip = AudioClip.Create(clip.name, samples, channels, frequency, false);
+            trimmedAudioClip.SetData(trimmedData, 0);
+            return trimmedAudioClip;
         }
 
-
-        public static AudioClip Normalize(AudioClip clip, float targetDb = -1f)
+        public static AudioClip ModifyGain(AudioClip clip, float targetDb = -3f)
         {
             if (clip == null) return null;
 

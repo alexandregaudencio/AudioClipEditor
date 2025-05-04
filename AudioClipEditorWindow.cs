@@ -6,39 +6,50 @@ namespace AudioClipEditor
     public class AudioClipEditorWindow : EditorWindow
     {
         private AudioClip targetClip;
-        private float trimStart = 0.01f;
-        private bool normalizeVolume = true;
+        private float startCut = 0.01f;
+        private float EndCut = 0.0f;
+        private bool gain = true;
+        private int targetDb = -3;
         private AudioClip previewClip;
         private AudioSource previewSource;
 
         private Texture2D originalWaveformTex;
         private Texture2D previewWaveformTex;
-        private const int waveformWidth = 512;
+        private static readonly int waveformWidth = Screen.width;
         private const int waveformHeight = 60;
 
 
-        [MenuItem("Tools/AudioClip Processor")]
+        [MenuItem("Tools/AudioClip Editor")]
         public static void ShowWindow()
         {
-            GetWindow<AudioClipEditorWindow>("AudioClip Processor");
+            GetWindow<AudioClipEditorWindow>("AudioClip Editor");
         }
 
         void OnGUI()
         {
             GUILayout.Space(10);
             var newTargetClip = (AudioClip)EditorGUILayout.ObjectField("AudioClip", targetClip, typeof(AudioClip), false);
+            if (newTargetClip == null) return;
             if (newTargetClip != targetClip)
             {
                 targetClip = newTargetClip;
-                trimStart = 0;
+                startCut = 0;
+                EndCut = targetClip.length;
             }
-            normalizeVolume = EditorGUILayout.Toggle("Normalize", normalizeVolume);
-
+            gain = EditorGUILayout.Toggle("Gain", gain);
+            if (gain)
+            {
+                targetDb = (int)EditorGUILayout.Slider("       db", targetDb, -20, 0);
+            }
             GUILayout.Space(10);
-            GUILayout.Label("Trim", EditorStyles.boldLabel);
+            GUILayout.Label("Cut", EditorStyles.boldLabel);
             GUILayout.BeginHorizontal();
-            trimStart = EditorGUILayout.Slider("start", trimStart, 0f, 0.99f);
-            GUILayout.Label("%");
+            startCut = EditorGUILayout.Slider("       start", startCut, 0f, targetClip.length - 0.01f);
+            GUILayout.Label("s");
+            GUILayout.EndHorizontal();
+            GUILayout.BeginHorizontal();
+            EndCut = EditorGUILayout.Slider("       end", EndCut, 0.01f, targetClip.length);
+            GUILayout.Label("s");
             GUILayout.EndHorizontal();
 
             PreviewClip();
@@ -52,6 +63,13 @@ namespace AudioClipEditor
 
                 GUILayout.Space(4);
                 DrawWaveformPreview(previewWaveformTex, "Processed");
+            }
+
+            if (previewSource != null && previewSource.isPlaying)
+            {
+
+                AddFeedbackTimeBar();
+                Repaint();
             }
 
             GUILayout.Space(10);
@@ -81,10 +99,13 @@ namespace AudioClipEditor
                 GUI.backgroundColor = originalColor * 1.2f;
                 GUIStyle boldButton = new GUIStyle(GUI.skin.button);
                 boldButton.fontStyle = FontStyle.Bold;
-                if (GUILayout.Button(" Save Edited clip", boldButton, GUILayout.Height(30)))
+                if (GUILayout.Button(" Save clip", boldButton, GUILayout.Height(30)))
                 {
                     SaveProcessedClipOverriding();
-                    trimStart = 0;
+                    /*SaveProcessedClip()*/
+
+                    startCut = 0;
+                    EndCut = 0;
                 }
 
                 GUI.backgroundColor = originalColor;
@@ -106,9 +127,10 @@ namespace AudioClipEditor
         void PreviewClip()
         {
             if (targetClip == null) return;
-            previewClip = AudioClipProcessor.TrimStart(targetClip, trimStart);
-            if (normalizeVolume)
-                previewClip = AudioClipProcessor.Normalize(previewClip);
+            previewClip = AudioClipProcessor.TrimAudioClip(targetClip, startCut, targetClip.length - EndCut);
+            if (gain)
+                previewClip = AudioClipProcessor.ModifyGain(previewClip, targetDb);
+
         }
 
         void PlayProcessedClip()
@@ -137,8 +159,7 @@ namespace AudioClipEditor
             string path = EditorUtility.SaveFilePanelInProject("Save Processed Clip", targetClip.name, "wav", "Save processed clip");
             if (string.IsNullOrEmpty(path)) return;
 
-
-            byte[] wavData = WavUtility.FromAudioClip(previewClip, out _, false);
+            byte[] wavData = WavUtility.FromAudioClip(previewClip);
             File.WriteAllBytes(Path.Combine(Application.dataPath, path.Replace("Assets/", "")), wavData);
             AssetDatabase.Refresh();
 
@@ -149,12 +170,20 @@ namespace AudioClipEditor
             string assetPath = AssetDatabase.GetAssetPath(targetClip);
             string fullPath = Path.Combine(Directory.GetCurrentDirectory(), assetPath);
 
-            byte[] wavData = WavUtility.FromAudioClip(previewClip, out _, false);
+            byte[] wavData = WavUtility.FromAudioClip(previewClip);
             File.WriteAllBytes(fullPath, wavData);
 
             AssetDatabase.ImportAsset(assetPath, ImportAssetOptions.Default);
             AssetDatabase.Refresh();
         }
 
+        public void AddFeedbackTimeBar()
+        {
+            Rect waveformRect = GUILayoutUtility.GetLastRect();
+            float playheadPosition = Mathf.Min(((previewSource.time) / (previewSource.clip.length / 2f)) * waveformRect.width, waveformRect.width);
+            Rect playheadRect = new Rect(playheadPosition, GUILayoutUtility.GetLastRect().y, 2, waveformHeight);
+            EditorGUI.DrawRect(playheadRect, Color.white);
+
+        }
     }
 }

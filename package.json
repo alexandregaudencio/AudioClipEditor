@@ -1,0 +1,22 @@
+{
+    "name": "com.alexandregaudencio.audioclipeditor",
+    "displayName": "Audio Clip Editor",
+    "version": "1.0.1",
+    "unity": "2019.4",
+    "description": "An AudioClip editor for Unity.\n\nThis tool allows you to edit audio clips in your project. You can adjust the volume, trim edges, and preview the result.\n\nThis tool is very useful for game developers who want to make quick and simple edits.",
+"keywords": [
+    "AudioClip",
+    "Editor",
+    "tools",
+    "unity"
+  ],  
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/alexandregaudencio/AudioClipEditor.git"
+  },  
+  "category": "tool",
+      "author": {
+      "name": "Alexandre Gaudencio",
+      "email": "alexandre.gtpjr@gmail.com"
+    }
+  }
